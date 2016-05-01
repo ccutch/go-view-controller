@@ -11,10 +11,12 @@ type Application struct {
 	*controller.Controller
 }
 
+// [GET] / => Render homepage
 func (this Application) Home() {
 	this.Render("spec/views/application.html")
 }
 
+// [GET] /welcome/{name} => Render welcome message
 func (this Application) Welcome() {
 	this.Data = struct {
 		Name    string
