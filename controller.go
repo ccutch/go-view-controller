@@ -19,6 +19,9 @@ type Controller struct {
 	Res    http.ResponseWriter
 	Req    *http.Request
 	Routes []Route
+
+	Params  map[string]string
+	Options map[string][]string
 }
 
 func (c *Controller) Render(name string) {
@@ -40,6 +43,8 @@ func (c *Controller) Write(data []byte) (int, error) {
 
 func (c *Controller) toHandleFunc(pred func()) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		c.Params = mux.Vars(r)
+		c.Options = r.URL.Query()
 		pred()
 	}
 }
@@ -47,6 +52,7 @@ func (c *Controller) toHandleFunc(pred func()) http.HandlerFunc {
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.Req = r
 	c.Res = w
+
 	m := mux.NewRouter()
 	for _, route := range c.Routes {
 		m.HandleFunc(route.Path, c.toHandleFunc(route.Handler)).
