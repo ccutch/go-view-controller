@@ -3,6 +3,7 @@ package controller
 import (
 	"html/template"
 	"net/http"
+	"reflect"
 
 	"github.com/gorilla/mux"
 )
@@ -14,23 +15,45 @@ type Route struct {
 }
 
 type Controller struct {
-	Prefix string
-	Data   interface{}
-	Res    http.ResponseWriter
-	Req    *http.Request
-	Routes []Route
+	// Configuration
+	Prefix   string
+	Data     interface{}
+	Res      http.ResponseWriter
+	Req      *http.Request
+	Routes   []Route
+	Partials string
 
+	// Oncall
 	Params  map[string]string
 	Options map[string][]string
 }
 
-func (c *Controller) Render(name string) {
-	temp, err := template.ParseFiles(name)
-	if err != nil {
-		c.Raw("Internal Server Error" + err.Error())
-		return
+func hasFieldHelper(v interface{}, name string) bool {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
 	}
-	temp.Execute(c.Res, c.Data)
+	if rv.Kind() != reflect.Struct {
+		return false
+	}
+	return rv.FieldByName(name).IsValid()
+}
+
+// Render view to HTTP response writer.
+func (c *Controller) Render(name string) error {
+	t := template.New(name + ".html").Funcs(template.FuncMap{
+		"hasField": hasFieldHelper,
+	})
+	t = template.Must(t.ParseFiles("views/" + name + ".html"))
+	if c.Partials != "" {
+		t = template.Must(t.ParseGlob(c.Partials + "/*.html"))
+	}
+	return t.Execute(c, c.Data)
+}
+
+func (c *Controller) RenderError(view string, err error) error {
+	t := template.Must(template.ParseFiles("views/errors/" + view + ".html"))
+	return t.Execute(c, err)
 }
 
 func (c *Controller) Raw(data string) {
